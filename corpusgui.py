@@ -154,8 +154,8 @@ def categories_to_file(counts_by_category, cat, freq_type):
         return
     with open(file, 'w') as f:
         f.write('{0}\t{1}\n'.format(cat, freq_type))
-        for c, f in counts_by_category:
-            f.write('{0}\t{1}\n'.format(c, f))
+        for k, v in counts_by_category:
+            f.write('{0}\t{1}\n'.format(k, v))
     messagebox.showinfo('Success', 'Frequencies by category written to {}'.format(file))
 
 def words_to_regex(words):
@@ -192,7 +192,7 @@ def search():
         print('Getting counts by category')
         counts_by_category = corp.get_counts_by_category(term, is_sensitive, cat, freq_type)
         if write_to_file:
-            categories_to_file(counts_by_category)
+            categories_to_file(counts_by_category, cat, freq_type)
         else:
             show_by_category(counts_by_category, cat, freq_type)
 
