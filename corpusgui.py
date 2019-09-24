@@ -12,6 +12,10 @@ import numpy as np
 import pickle
 
 def pickle_corpus():
+    """
+    Reads in the entire json Queen Victoria Correspondence Corpus, stores the data in Letter and Corpus objects, and pickles the objects. Only call this function if the corpus has changed.
+    :return: None
+    """
     letter_corp = corpus.Corpus([])
     with open('letters.json', encoding='utf8') as f:
         letter_list = json.load(f)
@@ -27,6 +31,10 @@ def pickle_corpus():
         pickle.dump(letter_corp, f)
 
 def load_corpus():
+    """
+    Load the pickled Corpus
+    :return: None
+    """
     print('Loading corpus')
     with open('corpus.pickle', 'rb') as fin:
         letter_corp = pickle.load(fin)
@@ -34,9 +42,14 @@ def load_corpus():
     return letter_corp
 
 def show_concordances(concordance_lines, term):
+    """
+    Display the concordance search results in a window
+    :param concordance_lines: a list of concordance lines
+    :param term: the search term
+    :return: None
+    """
     r = tkinter.Tk()
     r.title("Concordance Results")
-    # r.attributes('-fullscreen', True)
     text_frame = tkinter.Frame(r)
     text_frame.pack()
     right_scrollbar = tkinter.Scrollbar(text_frame)
@@ -55,6 +68,11 @@ def show_concordances(concordance_lines, term):
     r.mainloop()
 
 def concordance_to_file(concordance_lines):
+    """
+    Writes the concordance search results to a file
+    :param concordance_lines: a list of concordance lines
+    :return: None
+    """
     file = filename.get()
     if file == '':
         messagebox.showerror('Error', 'Please enter the name of the file to write to.')
@@ -66,6 +84,12 @@ def concordance_to_file(concordance_lines):
     messagebox.showinfo('Success', 'Concordances written to {}'.format(file))
 
 def show_counts(raw, norm):
+    """
+    Displays the frequencies of the searched term in a window
+    :param raw: raw frequency of the searched term
+    :param norm: normalized frequency of the searched term
+    :return: None
+    """
     r = tkinter.Tk()
     r.title("Frequency Results")
     text_frame = tkinter.Frame(r)
@@ -77,6 +101,12 @@ def show_counts(raw, norm):
     r.mainloop()
 
 def counts_to_file(raw, norm):
+    """
+    Writes the frequencies of the searched term to a file
+    :param raw: raw frequency of the searched term
+    :param norm: normalized frequency of the searched term
+    :return: None
+    """
     file = filename.get()
     if file == '':
         messagebox.showerror('Error', 'Please enter the name of the file to write to.')
@@ -87,6 +117,13 @@ def counts_to_file(raw, norm):
     messagebox.showinfo('Success', 'Frequencies written to {}'.format(file))
 
 def show_by_category(counts_by_category, cat, freq_type):
+    """
+    Displays a barchart showing the frequency by category
+    :param counts_by_category: a sorted list of tuples, with the first element being a label within the category (name of the writer or recipient or the year) and the second being the frequency
+    :param cat: string containing the category (writer, addressee, or year)
+    :param freq_type: type of frequency (raw or normalized)
+    :return: None
+    """
     categories, freqs = zip(*counts_by_category)
     r = tkinter.Tk()
     r.title('Bar Chart')
@@ -123,6 +160,13 @@ def show_by_category(counts_by_category, cat, freq_type):
         break
 
 def categories_to_file(counts_by_category, cat, freq_type):
+    """
+    Writes the frequencies by category to a text file with 2 columns (first for category name and second for frequency) separated by tabs
+    :param counts_by_category: a sorted list of tuples, with the first element being a label within the category (name of the writer or recipient or the year) and the second being the frequency
+    :param cat: string containing the category (writer, addressee, or year)
+    :param freq_type: type of frequency (raw or normalized)
+    :return: None
+    """
     file = filename.get()
     if file == '':
         messagebox.showerror('Error', 'Please enter the name of the file to write to.')
@@ -134,14 +178,29 @@ def categories_to_file(counts_by_category, cat, freq_type):
     messagebox.showinfo('Success', 'Frequencies by category written to {}'.format(file))
 
 def words_to_regex(words):
+    """
+    Converts word or phrase to a regular expression
+    :param words: string containing word or phrase
+    :return: string containing regular expression
+    """
     words = re.sub('\s+', '\s+', words)
     words = '\W+{0}\W+'.format(words)
     return words
 
 def format_selection(selection):
+    """
+    Formats a single item in the filter selection as a regular expression
+    :param selection: string containing the selected item
+    :return: string containing regular expression
+    """
     return '({0})'.format(re.sub('\s', '\s', selection))
 
 def selection_to_regex(selection_list):
+    """
+    Formats a list of selections from the filters as a regular expression
+    :param selection_list: a list of items selected from the filter listbox
+    :return: a string containing regular expression
+    """
     if len(selection_list) == 1:
         return re.sub('\s', '\s', selection_list[0])
     else:
@@ -150,6 +209,12 @@ def selection_to_regex(selection_list):
 
 
 def get_selection(indices, cat):
+    """
+    Gets the selection from the filter listboxes
+    :param indices: a list of indices of the selected items
+    :param cat: filter category (writer, addressee, or year)
+    :return: a list of the selected items
+    """
     selection = []
     for i in indices:
         if cat == 'writer':
@@ -161,10 +226,12 @@ def get_selection(indices, cat):
     return selection_to_regex(selection)
 
 def filter_corpus():
+    """
+    Gets the filters from the listboxes and filters the corpus
+    :return: a Corpus object with a subset of the letters
+    """
     print('Filtering corpus')
-    no_filter = True
     if by_writer.get():
-        no_filter = False
         selected_writers = writer_filter.curselection()
         if len(selected_writers) == 0:
             raise Exception('No writers selected. Please try again.')
@@ -172,7 +239,6 @@ def filter_corpus():
     else:
         writer_regex = '.*'
     if by_recipient.get():
-        no_filter = False
         selected_recipients = recipient_filter.curselection()
         if len(selected_recipients) == 0:
             raise Exception('No writers selected. Please try again.')
@@ -180,14 +246,12 @@ def filter_corpus():
     else:
         recipient_regex = '.*'
     if by_year.get():
-        no_filter = False
         selected_years = year_filter.curselection()
         if len(selected_years) == 0:
             raise Exception('No writers selected. Please try again.')
         year_regex = get_selection(selected_years, 'year')
     else:
         year_regex = '.*'
-
     new_corp = whole_corp.create_subcorpus(language=language.get(), writer=writer_regex, addressee=recipient_regex, year=year_regex)
     new_corp.compute_total_word_count()
     new_corp.set_writers()
@@ -197,6 +261,10 @@ def filter_corpus():
     return new_corp
 
 def search():
+    """
+    Searches the corpus and outputs the results according to the user's specifications
+    :return: None
+    """
     try:
         corp = filter_corpus()
         print('Finished filtering')
@@ -234,6 +302,10 @@ def search():
         messagebox.showerror('Error', e)
 
 def toggle_suboptions():
+    """
+    Shows and hides the suboptions based on the selected output type method
+    :return: None
+    """
     if output_type.get() == 'frequency by category':
         suboption_frame.grid()
         conc_option_frame.grid_remove()
@@ -245,6 +317,10 @@ def toggle_suboptions():
         conc_option_frame.grid_remove()
 
 def toggle_file_entry():
+    """
+    Shows and hides the filename entry box
+    :return: None
+    """
     if to_file.get():
         file_label.grid()
         file_entry.grid()
@@ -253,18 +329,30 @@ def toggle_file_entry():
         file_entry.grid_remove()
 
 def toggle_writer_filter():
+    """
+    Shows and hides the writer filter listbox
+    :return: None
+    """
     if by_writer.get():
         writer_frame.grid()
     else:
         writer_frame.grid_remove()
 
 def toggle_recipient_filter():
+    """
+    Shows and hides the recipient filter listbox
+    :return: None
+    """
     if by_recipient.get():
         recipient_frame.grid()
     else:
         recipient_frame.grid_remove()
 
 def toggle_year_filter():
+    """
+    Shows and hides the year filter listbox
+    :return:
+    """
     if by_year.get():
         year_frame.grid()
     else:
@@ -274,11 +362,6 @@ def toggle_year_filter():
 plt.switch_backend('TkAgg')
 whole_corp = load_corpus()
 
-# show_concordances(whole_corp, '\sopera\s', False, 20)
-# show_counts(whole_corp, '\sopera\s', False)
-# show_by_category(whole_corp, '\sopera\s', False, 'year', 'raw')
-
-# After writing command functions remove quotes from around name of commands
 root = tkinter.Tk()
 root.title('Queen Victoria Corpus')
 
