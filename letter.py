@@ -5,7 +5,7 @@ class Letter:
     def __init__(self, writer, addressee, year, language, text, index):
         self.writer = writer
         self.addressee = addressee
-        self.year = year # this is an int
+        self.year = year # this is a string
         self.language = language
         self.text = text
         self.total_word_count = 0

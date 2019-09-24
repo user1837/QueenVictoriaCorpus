@@ -16,12 +16,13 @@ def pickle_corpus():
     with open('letters.json', encoding='utf8') as f:
         letter_list = json.load(f)
     for i, l in enumerate(letter_list):
-        l_obj = letter.Letter(l['writer'], l['addressee'], int(l['year']), l['language'], l['text'], i)
+        l_obj = letter.Letter(l['writer'], l['addressee'], l['year'], l['language'], l['text'], i)
         letter_corp.add_letter(l_obj)
         letter_corp.add_writer(l['writer'].lower())
         letter_corp.add_addressee(l['addressee'].lower())
-        letter_corp.add_year(int(l['year']))
+        letter_corp.add_year(l['year'])
     letter_corp.compute_total_word_count()
+    letter_corp.sort_years()
     with open('corpus.pickle', 'wb') as f:
         pickle.dump(letter_corp, f)
 
@@ -31,33 +32,6 @@ def load_corpus():
         letter_corp = pickle.load(fin)
     print('Finished loading')
     return letter_corp
-
-# def draw_bar_graph(counts_by_category, category, count_type):
-#     categories, freqs = zip(*counts_by_category)
-#     r = tkinter.Tk()
-#     r.title('Bar Chart')
-#     x_locs = np.arange(len(categories))
-#     bar_heights = list(freqs)
-#     fig = Figure()
-#     ax = fig.add_subplot(111)
-#     bars = ax.bar(x_locs, bar_heights, color='b')
-#     ax.set_ylabel('{0} Frequency'.format(count_type.title()))
-#     ax.set_title('{0} Frequency by {1}'.format(count_type.title(), category.title()))
-#     ax.set_xticks(x_locs)
-#     ax.set_xticklabels(list(categories), rotation='vertical')
-#     plt.margins(0.2)
-#     fig.subplots_adjust(bottom=0.15)
-#     for b in bars:
-#         height = b.get_height()
-#         ax.annotate('{}'.format(height), xy=(b.get_x() + b.get_width() / 2, height), xytext=(0, 3),
-#                     textcoords='offset points', ha='center', va='bottom')
-#
-#     manager = plt.get_current_fig_manager()
-#     manager.resize(*manager.window.maxsize())
-#     canvas = FigureCanvasTkAgg(fig, master=r)
-#     canvas.draw()
-#     canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
-#     tkinter.mainloop()
 
 def show_concordances(concordance_lines, term):
     r = tkinter.Tk()
@@ -75,8 +49,9 @@ def show_concordances(concordance_lines, term):
     bottom_scrollbar.config(command=text_box.xview)
     if len(concordance_lines) == 0:
         text_box.insert(tkinter.END, 'No results found for {0}'.format(term))
-    for line in concordance_lines:
-        text_box.insert(tkinter.END, line)
+    else:
+        for line in concordance_lines:
+            text_box.insert(tkinter.END, line)
     r.mainloop()
 
 def concordance_to_file(concordance_lines):
@@ -160,42 +135,103 @@ def categories_to_file(counts_by_category, cat, freq_type):
 
 def words_to_regex(words):
     words = re.sub('\s+', '\s+', words)
-    words = '\s+{0}\s+'.format(words)
+    words = '\W+{0}\W+'.format(words)
     return words
 
-def search():
-    corp = whole_corp
-    term = search_term.get()
-    is_sensitive = sensitive.get()
-    write_to_file = to_file.get()
-    if term == '':
-        messagebox.showerror('Error', 'No search term was entered. Please try again.')
-        return
-    if not is_regex.get():
-        term = words_to_regex(term)
-    if output_type.get() == 'concordance':
-        concordance_lines = corp.get_concordances(term, is_sensitive, context_len.get())
-        if write_to_file:
-            concordance_to_file(concordance_lines)
-        else:
-            show_concordances(concordance_lines, term)
-    elif output_type.get() == 'total frequency':
-        raw = corp.get_total_raw_count(term, is_sensitive)
-        norm = corp.get_normalized_count(raw)
-        if write_to_file:
-            counts_to_file(raw, norm)
-        else:
-            show_counts(raw, norm)
-    else:
-        cat = category.get()
-        freq_type = frequency_type.get()
-        print('Getting counts by category')
-        counts_by_category = corp.get_counts_by_category(term, is_sensitive, cat, freq_type)
-        if write_to_file:
-            categories_to_file(counts_by_category, cat, freq_type)
-        else:
-            show_by_category(counts_by_category, cat, freq_type)
+def format_selection(selection):
+    return '({0})'.format(re.sub('\s', '\s', selection))
 
+def selection_to_regex(selection_list):
+    if len(selection_list) == 1:
+        return re.sub('\s', '\s', selection_list[0])
+    else:
+        selection_list = [format_selection(i) for i in selection_list]
+    return '|'.join(selection_list)
+
+
+def get_selection(indices, cat):
+    selection = []
+    for i in indices:
+        if cat == 'writer':
+            selection.append(writers[i])
+        elif cat == 'addressee':
+            selection.append(recipients[i])
+        else:
+            selection.append(years[i])
+    return selection_to_regex(selection)
+
+def filter_corpus():
+    print('Filtering corpus')
+    no_filter = True
+    if by_writer.get():
+        no_filter = False
+        selected_writers = writer_filter.curselection()
+        if len(selected_writers) == 0:
+            raise Exception('No writers selected. Please try again.')
+        writer_regex = get_selection(selected_writers, 'writer')
+    else:
+        writer_regex = '.*'
+    if by_recipient.get():
+        no_filter = False
+        selected_recipients = recipient_filter.curselection()
+        if len(selected_recipients) == 0:
+            raise Exception('No writers selected. Please try again.')
+        recipient_regex = get_selection(selected_recipients, 'addressee')
+    else:
+        recipient_regex = '.*'
+    if by_year.get():
+        no_filter = False
+        selected_years = year_filter.curselection()
+        if len(selected_years) == 0:
+            raise Exception('No writers selected. Please try again.')
+        year_regex = get_selection(selected_years, 'year')
+    else:
+        year_regex = '.*'
+
+    new_corp = whole_corp.create_subcorpus(language=language.get(), writer=writer_regex, addressee=recipient_regex, year=year_regex)
+    new_corp.compute_total_word_count()
+    new_corp.set_writers()
+    new_corp.set_addressees()
+    new_corp.set_years()
+    new_corp.sort_years()
+    return new_corp
+
+def search():
+    try:
+        corp = filter_corpus()
+        print('Finished filtering')
+        term = search_term.get()
+        is_sensitive = sensitive.get()
+        write_to_file = to_file.get()
+        if term == '':
+            messagebox.showerror('Error', 'No search term was entered. Please try again.')
+            return
+        if not is_regex.get():
+            term = words_to_regex(term)
+        if output_type.get() == 'concordance':
+            concordance_lines = corp.get_concordances(term, is_sensitive, context_len.get())
+            if write_to_file:
+                concordance_to_file(concordance_lines)
+            else:
+                show_concordances(concordance_lines, term)
+        elif output_type.get() == 'total frequency':
+            raw = corp.get_total_raw_count(term, is_sensitive)
+            norm = corp.get_normalized_count(raw)
+            if write_to_file:
+                counts_to_file(raw, norm)
+            else:
+                show_counts(raw, norm)
+        else:
+            cat = category.get()
+            freq_type = frequency_type.get()
+            print('Getting counts by category')
+            counts_by_category = corp.get_counts_by_category(term, is_sensitive, cat, freq_type)
+            if write_to_file:
+                categories_to_file(counts_by_category, cat, freq_type)
+            else:
+                show_by_category(counts_by_category, cat, freq_type)
+    except Exception as e:
+        messagebox.showerror('Error', e)
 
 def toggle_suboptions():
     if output_type.get() == 'frequency by category':
@@ -234,7 +270,7 @@ def toggle_year_filter():
     else:
         year_frame.grid_remove()
 
-
+# pickle_corpus()
 plt.switch_backend('TkAgg')
 whole_corp = load_corpus()
 
@@ -313,7 +349,7 @@ writer_frame = tkinter.Frame(filter_frame)
 with open('writers.pickle', 'rb') as wfin:
     writers = pickle.load(wfin)
 writer_var = tkinter.StringVar(value=writers)
-writer_filter = tkinter.Listbox(writer_frame, listvariable=writer_var, height=10, selectmode='extended')
+writer_filter = tkinter.Listbox(writer_frame, listvariable=writer_var, height=10, selectmode=tkinter.EXTENDED, exportselection=0)
 writer_scroll = tkinter.Scrollbar(writer_frame, orient=tkinter.VERTICAL, command=writer_filter.yview)
 writer_filter['yscrollcommand'] = writer_scroll.set
 # Set up recipient filter
@@ -324,7 +360,7 @@ recipient_frame = tkinter.Frame(filter_frame)
 with open('addressees.pickle', 'rb') as afin:
     recipients = pickle.load(afin)
 recipient_var = tkinter.StringVar(value=recipients)
-recipient_filter = tkinter.Listbox(recipient_frame, listvariable=recipient_var, height=10, selectmode='extended')
+recipient_filter = tkinter.Listbox(recipient_frame, listvariable=recipient_var, height=10, selectmode=tkinter.EXTENDED, exportselection=0)
 recipient_scroll = tkinter.Scrollbar(recipient_frame, orient=tkinter.VERTICAL, command=recipient_filter.yview)
 recipient_filter['yscrollcommand'] = recipient_scroll.set
 # Set up year filter
@@ -335,7 +371,7 @@ year_frame = tkinter.Frame(filter_frame)
 with open('years.pickle', 'rb') as yfin:
     years = pickle.load(yfin)
 year_var = tkinter.StringVar(value=years)
-year_filter = tkinter.Listbox(year_frame, listvariable=year_var, height=10, selectmode='extended')
+year_filter = tkinter.Listbox(year_frame, listvariable=year_var, height=10, selectmode=tkinter.EXTENDED, exportselection=0)
 year_scroll = tkinter.Scrollbar(year_frame, orient=tkinter.VERTICAL, command=year_filter.yview)
 year_filter['yscrollcommand'] = year_scroll.set
 # Set up language filter

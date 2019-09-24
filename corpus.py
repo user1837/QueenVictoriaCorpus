@@ -35,16 +35,20 @@ class Corpus:
         assert len(self.letters) > 0
         self.years = set([i.get_year() for i in self.letters])
 
+    def sort_years(self):
+        self.years = list(self.years)
+        self.years.sort()
+
     def add_year(self, year):
         self.years.add(year)
 
-    def filter_letters(self, language='(en)|(fr)', writer='.*', addressee='.*', from_year=1821, to_year=1862):
-        return [i for i in self.letters if re.search(language, i.get_language(), re.I) and re.search(writer, i.get_writer(), re.I) and re.search(addressee, i.get_addressee(), re.I) and (i.get_year() >= from_year and i.get_year() <= to_year)]
+    def filter_letters(self, language='(en)|(fr)', writer='.*', addressee='.*', year='.*'):
+        return [i for i in self.letters if re.search(language, i.get_language(), re.I) and re.search(writer, i.get_writer(), re.I) and re.search(addressee, i.get_addressee(), re.I) and re.search(year, i.get_year(), re.I)]
 
-    def create_subcorpus(self, language='(en)|(fr)', writer='.*', addressee='.*', from_year=1821, to_year=1862):
-        filtered_letters = self.filter_letters(language, writer, addressee, from_year, to_year)
+    def create_subcorpus(self, language='(en)|(fr)', writer='.*', addressee='.*', year='.*'):
+        filtered_letters = self.filter_letters(language, writer, addressee, year)
         if len(filtered_letters) == 0:
-            raise Exception('No letters found for {0}, {1}, {2}, and years {3} to {4}. Please enter different specifications.'.format(language, writer, addressee, from_year, to_year))
+            raise Exception('No letters found for {0}, {1}, {2}, and {3}. Please enter different specifications.'.format(language, writer, addressee, year))
         subcorp = Corpus(filtered_letters)
         subcorp.compute_total_word_count()
         # subcorp.set_writers()
@@ -77,10 +81,8 @@ class Corpus:
                 raw = new_corp.get_total_raw_count(search_term, case_sensitive)
                 counts_by_category[a] = raw if output_type == 'raw' else new_corp.get_normalized_count(raw)
         else:
-            list_years = list(self.years)
-            list_years.sort()
-            for y in list_years:
-                new_corp = self.create_subcorpus(from_year=y, to_year=y)
+            for y in self.years:
+                new_corp = self.create_subcorpus(year=y)
                 raw = new_corp.get_total_raw_count(search_term, case_sensitive)
                 counts_by_category[y] = raw if output_type == 'raw' else new_corp.get_normalized_count(raw)
 
